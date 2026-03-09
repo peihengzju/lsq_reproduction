@@ -1,0 +1,8 @@
+--index-url https://pypi.org/simple
+--extra-index-url https://download.pytorch.org/whl/cu118
+
+torch>=2.1
+torchvision>=0.16
+tqdm>=4.66
+
+datasets>=2.18
