@@ -4,18 +4,14 @@ Implementation-focused reproduction of **Learned Step Size Quantization (LSQ)** 
 
 - Paper copy in this repo: [`1902.08153v3.pdf`](./1902.08153v3.pdf)
 - Core objective: reproduce LSQ training behavior with a clean, reusable PyTorch pipeline
-- Positioning: graduate-level research engineering project for portfolio / resume use
+- Scope: full-precision baseline + LSQ quantized fine-tuning on ImageNet-1k
 
-## Overview
-
-Quantization-aware training is critical for efficient deployment on constrained hardware. This project reproduces LSQ with paper-aligned defaults and an end-to-end training workflow.
-
-Implemented scope:
+## What Is Implemented
 
 - Model: pre-activation ResNet-18
 - Two-stage training:
-  1. Full-precision baseline training
-  2. LSQ quantized fine-tuning from FP checkpoint
+  1. Full-precision (FP) baseline training
+  2. LSQ fine-tuning from FP checkpoint
 - Quantized modules: Conv/Linear weights and input activations
 - First/last layer policy: optional higher precision (default 8-bit)
 - Optimizer: SGD + momentum (0.9)
@@ -31,12 +27,24 @@ Paper-aligned defaults (ResNet-18):
   - 3-bit: `0.5e-4`
   - 4/8-bit: `1e-4`
 
+## Reproduction Results (ImageNet-1k)
+
+The following are run results from this repo (March 2026):
+
+| Setting | Epochs | Val Top-1 (%) | Val Top-5 (%) | Top-1 Drop vs FP |
+|---|---:|---:|---:|---:|
+| FP (baseline) | 90 | **69.67** | **89.04** | 0.00 |
+| LSQ W8A8 (first/last 8-bit) | 1 | 68.52 | 88.50 | -1.15 |
+| LSQ W4A4 (first/last 8-bit) | 90 | 68.64 | 88.28 | -1.03 |
+
+Key takeaway: the 4-bit quantized model is within about **1.0 top-1** of FP in this setup.
+
 ## Repository Structure
 
 - `train_fp.py`: full-precision training
 - `train.py`: LSQ quantized fine-tuning
 - `eval.py`: evaluation for FP/LSQ checkpoints
-- `lsq/quant/lsq.py`: LSQ quantizer (`gradscale`, `roundpass`, `quantize`)
+- `lsq/quant/lsq.py`: LSQ quantizer (`grad_scale`, `round_pass`, learnable step size)
 - `lsq/models/preact_resnet.py`: pre-activation ResNet-18 + quantization wrapping
 - `lsq/data/imagenet.py`: ImageNet data loading and transforms
 - `export_hf_imagenet.py`: export HF ImageNet cache to `ImageFolder`
@@ -81,44 +89,65 @@ python split_dataset.py \
   --seed 42
 ```
 
-### 3) Train full-precision baseline
+### 3) Run paper-style training recipe
 
 ```bash
+# Set your data root first
+DATA=data_imagenet1k
+
+# FP baseline (90 epochs)
 python train_fp.py \
-  --data-root data_imagenet1k \
-  --output-dir runs/fp_preact18
-```
+  --data-root "$DATA" \
+  --epochs 90 \
+  --lr 0.1 \
+  --momentum 0.9 \
+  --weight-decay 1e-4 \
+  --batch-size 256 \
+  --num-workers 8 \
+  --output-dir runs/fp_paper
 
-### 4) LSQ fine-tuning (example: W4A4)
-
-```bash
+# LSQ 8-bit (paper: 1 epoch)
 python train.py \
-  --data-root data_imagenet1k \
-  --fp-ckpt runs/fp_preact18/best.pth \
-  --output-dir runs/lsq4_preact18 \
+  --data-root "$DATA" \
+  --fp-ckpt runs/fp_paper/best.pth \
+  --w-bits 8 \
+  --a-bits 8 \
+  --first-last-bits 8 \
+  --epochs 1 \
+  --lr 0.001 \
+  --momentum 0.9 \
+  --weight-decay 1e-4 \
+  --batch-size 256 \
+  --num-workers 8 \
+  --output-dir runs/lsq8_paper
+
+# LSQ 4-bit (paper: 90 epochs)
+python train.py \
+  --data-root "$DATA" \
+  --fp-ckpt runs/fp_paper/best.pth \
   --w-bits 4 \
   --a-bits 4 \
-  --first-last-bits 8
+  --first-last-bits 8 \
+  --epochs 90 \
+  --lr 0.01 \
+  --momentum 0.9 \
+  --weight-decay 1e-4 \
+  --batch-size 256 \
+  --num-workers 8 \
+  --output-dir runs/lsq4_paper
 ```
 
-### 5) Evaluate checkpoint
+### 4) Evaluate checkpoints
 
 ```bash
 python eval.py \
-  --data-root data_imagenet1k \
-  --ckpt runs/lsq4_preact18/best.pth \
+  --data-root "$DATA" \
+  --ckpt runs/lsq4_paper/best.pth \
   --w-bits 4 \
   --a-bits 4
 ```
 
-## Engineering Highlights
-
-- Reproduced LSQ quantization mechanics from paper pseudocode in modular PyTorch components
-- Encoded paper-specific training defaults directly in CLI-driven training scripts
-- Built a reproducible train/eval pipeline suitable for rapid experiment iteration
-- Added practical dataset tooling for real-world workflow setup
-
 ## Notes
 
 - This repository emphasizes implementation fidelity and workflow reproducibility.
-- Final metrics can vary by hardware, data preprocessing details, and training budget.
+- Final numbers can vary with hardware, preprocessing, augmentation details, and random seed.

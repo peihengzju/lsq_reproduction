@@ -25,3 +25,8 @@ env/
 # OS / misc
 .DS_Store
 *.log
+
+# local result artifacts
+results.txt
+results*.txt
+*:Zone.Identifier
