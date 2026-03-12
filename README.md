@@ -1,5 +1,13 @@
 # LSQ ImageNet Reproduction for Pre-Activation ResNet-18
 
+## Related repository
+
+This project focuses on LSQ quantization training.
+
+For the corresponding CUDA inference optimization work, see:
+
+https://github.com/peihengzju/int4-cuda-inference
+
 PyTorch implementation of **Learned Step Size Quantization (LSQ)** on ImageNet-1K, focused on paper-aligned quantization-aware training for PreAct-ResNet18.
 
 - Reference paper: [Learned Step Size Quantization (LSQ)](https://arxiv.org/abs/1902.08153)
