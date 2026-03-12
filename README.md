@@ -170,3 +170,7 @@ python eval.py \
 - If you integrate these checkpoints into a deployment or kernel-optimization project, prefer reading quantization config from checkpoint metadata rather than retyping CLI flags.
 - External evaluation scripts that assume standard ImageNet normalization will report incorrect accuracy for these checkpoints unless they match this repo's preprocessing.
 - Paper-style `first/last 8-bit` checkpoints may leave `conv1` and `fc` outside an INT4-only inference path by design.
+
+## License
+
+MIT License. See [`LICENSE`](LICENSE).
